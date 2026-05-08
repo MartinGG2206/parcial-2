@@ -119,6 +119,146 @@ Variables sugeridas en Railway:
 - `CATALOG_API_URL=https://${{catalog-service.RAILWAY_PUBLIC_DOMAIN}}`
 - `ORDERS_API_URL=https://${{orders-service.RAILWAY_PUBLIC_DOMAIN}}`
 
+## Despliegue en Google Cloud con Cloud Run
+
+Fecha de referencia de esta guia: `2026-05-08`.
+
+Esta app ya fue ajustada para Cloud Run:
+
+- los 4 contenedores escuchan `PORT`,
+- el frontend acepta URLs publicas por variables de entorno,
+- los microservicios soportan Cloud SQL por Unix sockets con `INSTANCE_CONNECTION_NAME`.
+
+### Arquitectura recomendada
+
+1. `Cloud SQL for PostgreSQL` para `auth-service` y `orders-service`.
+2. `Cloud SQL for MySQL` para `catalog-service`.
+3. `Cloud Run` para:
+   - `auth-service`
+   - `catalog-service`
+   - `orders-service`
+   - `frontend`
+
+### Advertencia de costo
+
+Cloud Run tiene free tier, pero `Cloud SQL` no es gratis de forma permanente. Si no estas usando creditos promocionales, vas a tener cobro por las dos bases.
+
+Fuentes oficiales:
+
+- Cloud Run deploy: https://cloud.google.com/run/docs/quickstarts/deploy-container
+- Deploy from source: https://cloud.google.com/run/docs/deploying-source-code
+- Cloud Run container contract (`PORT`): https://cloud.google.com/run/docs/container-contract
+- Cloud Run + PostgreSQL: https://cloud.google.com/sql/docs/postgres/connect-run
+- Cloud Run + MySQL: https://cloud.google.com/sql/docs/mysql/connect-instance-cloud-run
+- Cloud Run pricing: https://cloud.google.com/run
+- Cloud SQL pricing: https://cloud.google.com/sql/pricing
+
+### Variables que debes definir
+
+Usa el mismo `JWT_SECRET` en los tres backends.
+
+#### auth-service
+
+```env
+DB_NAME=carpinteria_suite
+DB_USER=carpinteria
+DB_PASSWORD=TU_PASSWORD_POSTGRES
+DB_SCHEMA=auth_service
+INSTANCE_CONNECTION_NAME=TU_PROYECTO:TU_REGION:carpinteria-postgres
+JWT_SECRET=TU_SECRETO_JWT
+CORS_ORIGIN=*
+ADMIN_NAME=Administrador Carpinteria
+ADMIN_EMAIL=admin@carpinteria.local
+ADMIN_PASSWORD=Admin123*
+```
+
+#### catalog-service
+
+```env
+DB_NAME=carpinteria_catalog
+DB_USER=carpinteria
+DB_PASSWORD=TU_PASSWORD_MYSQL
+INSTANCE_CONNECTION_NAME=TU_PROYECTO:TU_REGION:carpinteria-mysql
+JWT_SECRET=TU_SECRETO_JWT
+CORS_ORIGIN=*
+```
+
+#### orders-service
+
+```env
+DB_NAME=carpinteria_suite
+DB_USER=carpinteria
+DB_PASSWORD=TU_PASSWORD_POSTGRES
+DB_SCHEMA=orders_service
+INSTANCE_CONNECTION_NAME=TU_PROYECTO:TU_REGION:carpinteria-postgres
+JWT_SECRET=TU_SECRETO_JWT
+CORS_ORIGIN=*
+```
+
+### Orden de despliegue recomendado
+
+1. Crear proyecto en Google Cloud.
+2. Habilitar APIs:
+   - Cloud Run API
+   - Cloud Build API
+   - Artifact Registry API
+   - Cloud SQL Admin API
+3. Crear una instancia `Cloud SQL PostgreSQL`.
+4. Crear una instancia `Cloud SQL MySQL`.
+5. Crear usuario y base en cada una.
+6. Dar rol `Cloud SQL Client` a la service account de cada servicio de Cloud Run.
+7. Desplegar `auth-service`.
+8. Desplegar `catalog-service`.
+9. Desplegar `orders-service`.
+10. Desplegar `frontend` usando las URLs publicas de los 3 backends.
+
+### Comandos base con gcloud
+
+#### auth-service
+
+```bash
+gcloud run deploy auth-service \
+  --source backend/auth-service \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances TU_PROYECTO:us-central1:carpinteria-postgres \
+  --set-env-vars DB_NAME=carpinteria_suite,DB_USER=carpinteria,DB_PASSWORD=TU_PASSWORD_POSTGRES,DB_SCHEMA=auth_service,INSTANCE_CONNECTION_NAME=TU_PROYECTO:us-central1:carpinteria-postgres,JWT_SECRET=TU_SECRETO_JWT,CORS_ORIGIN=*,ADMIN_NAME=Administrador\ Carpinteria,ADMIN_EMAIL=admin@carpinteria.local,ADMIN_PASSWORD=Admin123*
+```
+
+#### catalog-service
+
+```bash
+gcloud run deploy catalog-service \
+  --source backend/catalog-service \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances TU_PROYECTO:us-central1:carpinteria-mysql \
+  --set-env-vars DB_NAME=carpinteria_catalog,DB_USER=carpinteria,DB_PASSWORD=TU_PASSWORD_MYSQL,INSTANCE_CONNECTION_NAME=TU_PROYECTO:us-central1:carpinteria-mysql,JWT_SECRET=TU_SECRETO_JWT,CORS_ORIGIN=*
+```
+
+#### orders-service
+
+```bash
+gcloud run deploy orders-service \
+  --source backend/orders-service \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances TU_PROYECTO:us-central1:carpinteria-postgres \
+  --set-env-vars DB_NAME=carpinteria_suite,DB_USER=carpinteria,DB_PASSWORD=TU_PASSWORD_POSTGRES,DB_SCHEMA=orders_service,INSTANCE_CONNECTION_NAME=TU_PROYECTO:us-central1:carpinteria-postgres,JWT_SECRET=TU_SECRETO_JWT,CORS_ORIGIN=*
+```
+
+#### frontend
+
+Reemplaza `AUTH_URL`, `CATALOG_URL` y `ORDERS_URL` por las URLs publicas que te devuelve Cloud Run al desplegar los backends.
+
+```bash
+gcloud run deploy frontend \
+  --source frontend \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars AUTH_API_URL=AUTH_URL,CATALOG_API_URL=CATALOG_URL,ORDERS_API_URL=ORDERS_URL
+```
+
 ## Validacion realizada
 
 Se verifico localmente con Docker:

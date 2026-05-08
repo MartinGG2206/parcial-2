@@ -2,11 +2,11 @@ const { Sequelize } = require('sequelize');
 const env = require('./env');
 
 const sequelize = new Sequelize(env.dbName, env.dbUser, env.dbPassword, {
-  host: env.dbHost,
+  host: env.dbSocketPath || env.dbHost,
   port: env.dbPort,
   dialect: 'postgres',
   logging: false,
-  dialectOptions: env.dbSsl
+  dialectOptions: env.dbSsl && !env.dbSocketPath
     ? {
         ssl: {
           require: true,
@@ -24,4 +24,3 @@ module.exports = {
   sequelize,
   ensureSchema
 };
-

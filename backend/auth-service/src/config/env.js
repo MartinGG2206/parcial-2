@@ -6,6 +6,12 @@ const env = {
   dbUser: process.env.DB_USER || 'carpinteria',
   dbPassword: process.env.DB_PASSWORD || 'carpinteria123',
   dbSchema: process.env.DB_SCHEMA || 'auth_service',
+  instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME || '',
+  dbSocketPath:
+    process.env.DB_SOCKET_PATH ||
+    (process.env.INSTANCE_CONNECTION_NAME
+      ? `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`
+      : ''),
   dbSsl: process.env.DB_SSL === 'true',
   jwtSecret: process.env.JWT_SECRET || 'dev-carpinteria-secret',
   corsOrigin: process.env.CORS_ORIGIN || '*',
@@ -15,4 +21,3 @@ const env = {
 };
 
 module.exports = env;
-
