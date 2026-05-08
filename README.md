@@ -259,6 +259,37 @@ gcloud run deploy frontend \
   --set-env-vars AUTH_API_URL=AUTH_URL,CATALOG_API_URL=CATALOG_URL,ORDERS_API_URL=ORDERS_URL
 ```
 
+### Forma mas simple
+
+Si no quieres crear cada servicio a mano desde la UI, usa el script:
+
+1. Abre Cloud Shell.
+2. Clona el repo:
+
+```bash
+git clone https://github.com/MartinGG2206/parcial-2.git
+cd parcial-2
+```
+
+3. Crea tu archivo de variables a partir de [scripts/gcp.env.example](./scripts/gcp.env.example).
+4. Carga variables y ejecuta:
+
+```bash
+set -a
+source scripts/gcp.env.example
+set +a
+bash scripts/deploy-cloud-run.sh
+```
+
+Ese script despliega en orden:
+
+- `auth-service`
+- `catalog-service`
+- `orders-service`
+- `frontend`
+
+y luego imprime las URLs finales.
+
 ## Validacion realizada
 
 Se verifico localmente con Docker:
