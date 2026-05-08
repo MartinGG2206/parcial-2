@@ -4,13 +4,16 @@ const routes = require('./routes/auth.routes');
 const env = require('./config/env');
 
 const app = express();
+const corsOptions = {
+  origin: env.corsOrigin || '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+  optionsSuccessStatus: 204
+};
 
-app.use(
-  cors({
-    origin: env.corsOrigin === '*' ? true : env.corsOrigin,
-    credentials: false
-  })
-);
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(routes);
 
@@ -19,4 +22,3 @@ app.use((req, res) => {
 });
 
 module.exports = app;
-

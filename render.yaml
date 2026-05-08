@@ -68,7 +68,7 @@ services:
       - key: ADMIN_NAME
         value: Administrador Carpinteria
       - key: ADMIN_EMAIL
-        value: admin@carpinteria.render
+        value: admin@carpinteria.local
       - key: ADMIN_PASSWORD
         sync: false
 
