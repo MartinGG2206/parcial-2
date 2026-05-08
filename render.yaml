@@ -1,0 +1,173 @@
+databases:
+  - name: carpinteria-postgres
+    plan: free
+    region: ohio
+    databaseName: carpinteria_suite
+    user: carpinteria
+
+services:
+  - name: carpinteria-mysql
+    type: pserv
+    runtime: docker
+    plan: starter
+    region: ohio
+    dockerfilePath: ./infra/mysql/Dockerfile
+    dockerContext: ./infra/mysql
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        value: carpinteria_catalog
+      - key: MYSQL_USER
+        value: carpinteria
+      - key: MYSQL_PASSWORD
+        sync: false
+
+  - name: auth-service
+    type: web
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./backend/auth-service/Dockerfile
+    dockerContext: ./backend/auth-service
+    envVars:
+      - key: PORT
+        value: 4001
+      - key: DB_HOST
+        fromDatabase:
+          name: carpinteria-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: carpinteria-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: carpinteria-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: carpinteria-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: carpinteria-postgres
+          property: password
+      - key: DB_SCHEMA
+        value: auth_service
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: ADMIN_NAME
+        value: Administrador Carpinteria
+      - key: ADMIN_EMAIL
+        value: admin@carpinteria.render
+      - key: ADMIN_PASSWORD
+        sync: false
+
+  - name: catalog-service
+    type: web
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./backend/catalog-service/Dockerfile
+    dockerContext: ./backend/catalog-service
+    envVars:
+      - key: PORT
+        value: 4002
+      - key: DB_HOST
+        fromService:
+          name: carpinteria-mysql
+          type: pserv
+          property: host
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        value: carpinteria_catalog
+      - key: DB_USER
+        value: carpinteria
+      - key: DB_PASSWORD
+        fromService:
+          name: carpinteria-mysql
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
+      - key: JWT_SECRET
+        fromService:
+          name: auth-service
+          type: web
+          envVarKey: JWT_SECRET
+      - key: CORS_ORIGIN
+        value: "*"
+
+  - name: orders-service
+    type: web
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./backend/orders-service/Dockerfile
+    dockerContext: ./backend/orders-service
+    envVars:
+      - key: PORT
+        value: 4003
+      - key: DB_HOST
+        fromDatabase:
+          name: carpinteria-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: carpinteria-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: carpinteria-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: carpinteria-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: carpinteria-postgres
+          property: password
+      - key: DB_SCHEMA
+        value: orders_service
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        fromService:
+          name: auth-service
+          type: web
+          envVarKey: JWT_SECRET
+      - key: CORS_ORIGIN
+        value: "*"
+
+  - name: frontend
+    type: web
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: AUTH_API_URL
+        fromService:
+          name: auth-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: CATALOG_API_URL
+        fromService:
+          name: catalog-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ORDERS_API_URL
+        fromService:
+          name: orders-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

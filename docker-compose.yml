@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: carpinteria-postgres
+    environment:
+      POSTGRES_DB: carpinteria_suite
+      POSTGRES_USER: carpinteria
+      POSTGRES_PASSWORD: carpinteria123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carpinteria -d carpinteria_suite"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    build:
+      context: ./infra/mysql
+      dockerfile: Dockerfile
+    container_name: carpinteria-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: carpinteria_catalog
+      MYSQL_USER: carpinteria
+      MYSQL_PASSWORD: carpinteria123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+    environment:
+      PORT: 4001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: carpinteria_suite
+      DB_USER: carpinteria
+      DB_PASSWORD: carpinteria123
+      DB_SCHEMA: auth_service
+      JWT_SECRET: dev-carpinteria-secret
+      CORS_ORIGIN: http://localhost:8080
+      ADMIN_NAME: Administrador Carpinteria
+      ADMIN_EMAIL: admin@carpinteria.local
+      ADMIN_PASSWORD: Admin123*
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4001:4001"
+
+  catalog-service:
+    build:
+      context: ./backend/catalog-service
+    environment:
+      PORT: 4002
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: carpinteria_catalog
+      DB_USER: carpinteria
+      DB_PASSWORD: carpinteria123
+      JWT_SECRET: dev-carpinteria-secret
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "4002:4002"
+
+  orders-service:
+    build:
+      context: ./backend/orders-service
+    environment:
+      PORT: 4003
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: carpinteria_suite
+      DB_USER: carpinteria
+      DB_PASSWORD: carpinteria123
+      DB_SCHEMA: orders_service
+      JWT_SECRET: dev-carpinteria-secret
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4003:4003"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      AUTH_API_URL: http://localhost:4001
+      CATALOG_API_URL: http://localhost:4002
+      ORDERS_API_URL: http://localhost:4003
+    depends_on:
+      - auth-service
+      - catalog-service
+      - orders-service
+    ports:
+      - "8080:80"
+
+volumes:
+  postgres_data:
+  mysql_data:
+
